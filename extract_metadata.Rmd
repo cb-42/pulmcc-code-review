@@ -1,0 +1,26 @@
+---
+title: "Extracting metadata"
+author: "Christopher Brown"
+date: "1/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+This is a brief example using simulated (though realistic) sample names and generates several metadata columns with `tidyr::extract`. More examples to follow.
+
+```{r metadata_extraction}
+sample_names <- paste0(paste0("LMB21_Feces_D", c(1,4,7,10,14)), "_M", rep(c(1:5), each=5))
+
+meta_df <- sample_names %>%
+  data.frame(Sample_name = .) %>%
+  tidyr::extract(col = Sample_name, into = c("Experiment", "Tissue", "Day", "Mouse"), 
+          regex = "([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)")
+```
+
