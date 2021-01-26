@@ -1,7 +1,7 @@
 ---
-title: "Extracting metadata"
+title: "Code Review Demo: Extracting metadata"
 author: "Christopher Brown"
-date: "1/18/2021"
+date: "1/25/2021 (revised)"
 output: html_document
 ---
 
@@ -13,14 +13,46 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-This is a brief example using simulated (though realistic) sample names and generates several metadata columns with `tidyr::extract`. More examples to follow.
+This is a brief example with simulated (though realistic) sample names using `tidyr::extract` to then generate several metadata columns. Note that the `remove` parameter can be set to `FALSE` to retain the input column, which consists of the sample names in this example.
 
 ```{r metadata_extraction}
-sample_names <- paste0(paste0("LMB21_Feces_D", c(1,4,7,10,14)), "_M", rep(c(1:5), each=5))
+(sample_names <- paste0(paste0("LMB21_Feces_D", c(1,4,7,10,14)), "_M", rep(c(1:5), each=5)))
 
-meta_df <- sample_names %>%
+(meta_df <- sample_names %>%
   data.frame(Sample_name = .) %>%
   tidyr::extract(col = Sample_name, into = c("Experiment", "Tissue", "Day", "Mouse"), 
-          regex = "([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)")
+          regex = "([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)", remove = FALSE))
 ```
+
+What if the metadata is not uniformly structured? If the patterns found within a sample name don't match the expected regex capture groups, **NA** will be returned for all extaction columns.
+
+```{r uneven_sample_names}
+(sample_names_uneven <- c(sample_names, paste0("AE_", 1:2)))
+
+# Note: this operation will result in the AE rows having NA for all fields
+(meta_df2 <- sample_names_uneven %>%
+  data.frame(Sample_name = .) %>%
+  tidyr::extract(col = Sample_name, into = c("Experiment", "Tissue", "Day", "Mouse"), 
+          regex = "([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)", remove = FALSE))
+```
+
+Another approach could be to split out control samples, create necessary variables for each group of samples, and then join the resulting dataframes. In this case a full join is necessary so that all observations and variables are kept in the combined dataframe.
+
+```{r multiple_extractions}
+(tissues <- dplyr::filter(meta_df2, Experiment == "LMB21")$Sample_name)
+(controls <- dplyr::filter(meta_df2, is.na(Experiment))$Sample_name)
+  
+(tissue_df <- tissues %>%
+  data.frame(Sample_name = .) %>%
+  tidyr::extract(col = Sample_name, into = c("Experiment", "Tissue", "Day", "Mouse"), 
+          regex = "([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)_([[:alnum:]]+)", remove = FALSE))
+
+(control_df <- controls %>%
+  data.frame(Sample_name = .) %>%
+  tidyr::extract(col = Sample_name, into = c("Replicate"), 
+          regex = "_([[:alnum:]]+)", remove = FALSE))
+
+(combined_df <- full_join(tissue_df, control_df, by = "Sample_name"))
+```
+
 
